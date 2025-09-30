@@ -1,7 +1,8 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { PrismaClient } from 'generated/prisma';
+import { PaginationDto } from 'src/common';
 
 @Injectable()
 export class ProductsService extends PrismaClient implements OnModuleInit {
@@ -12,23 +13,79 @@ export class ProductsService extends PrismaClient implements OnModuleInit {
     this.$connect();
     this.logger.log('Connected to the database');
   }
-  create(createProductDto: CreateProductDto) {
-    return 'This action adds a new product';
+  async create(createProductDto: CreateProductDto) {
+    try {
+      return await this.product.create({
+        data: createProductDto
+      });
+    } catch (error) {
+      this.logger.error(`Failed to create product: ${error.message}`, error.stack);
+      throw new Error('Could not create product. Please try again later.');
+    }
   }
 
-  findAll() {
-    return `This action returns all products`;
+  async findAll(paginationDto: PaginationDto) {
+
+    const { page = 1, limit = 10 } = paginationDto;
+
+    const totalPages = await this.product.count({ where: { available: true } });
+
+    const lastPage = Math.ceil(totalPages / limit);
+
+    if (page > lastPage) {
+      throw new BadRequestException('Page number exceeds total pages available');
+    }
+
+    return {
+      data: await this.product.findMany({
+      skip: (page - 1) * limit,
+      take: limit,
+      where: { available: true }
+    }),
+    metadata: {
+      page,
+      total: totalPages,
+      lastPage,
+    }
+
+    }
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} product`;
+  async findOne(id: number) {
+    const product = await this.product.findUnique({
+      where: { id, available: true }
+    });
+    if (!product) {
+      throw new NotFoundException(`Product with id ${id} not found`);
+    }
+    return product;
   }
 
-  update(id: number, updateProductDto: UpdateProductDto) {
-    return `This action updates a #${id} product`;
+  async update(id: number, updateProductDto: UpdateProductDto) {
+    await this.findOne(id); // Ensure the product exists
+
+    return this.product.update({
+      where: { id },
+      data: updateProductDto
+    });
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} product`;
+  async remove(id: number) {
+    await this.findOne(id); // Ensure the product exists
+    
+    
+    // return this.product.delete({
+    //   where: { id }
+    // });
+
+
+    const product = await this.product.update({
+      where: { id },
+      data: {
+        available: true
+      }
+    });
+
+    return product;
   }
 }
