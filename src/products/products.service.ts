@@ -89,7 +89,7 @@ export class ProductsService extends PrismaClient implements OnModuleInit {
     const product = await this.product.update({
       where: { id },
       data: {
-        available: true
+        available: false
       }
     });
 
