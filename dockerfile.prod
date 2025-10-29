@@ -1,0 +1,64 @@
+# Dependencias
+FROM node:21-alpine3.19 AS deps
+
+WORKDIR /usr/src/app
+
+COPY package.json ./
+COPY pnpm-lock.yaml ./
+RUN npm install -g pnpm
+RUN pnpm install
+
+
+
+# Builder - Construye la aplicación
+FROM node:21-alpine3.19 AS build
+
+WORKDIR /usr/src/app
+
+# Instalar pnpm
+RUN npm install -g pnpm
+
+# Copiar de deps, los módulos de node
+COPY --from=deps /usr/src/app/node_modules ./node_modules
+
+# Copiar todo el codigo fuente de la aplicación
+COPY . .
+
+# Generar cliente de Prisma
+RUN pnpx prisma generate
+
+# RUN pnpm run test
+RUN pnpm run build
+
+## Eliminar dependencias de desarrollo (opcional, compatible con pnpm v8+)
+RUN pnpm prune --prod && pnpm store prune
+
+# Crear la imagen final de Docker
+FROM node:21-alpine3.19 AS prod
+
+WORKDIR /usr/src/app
+
+# Copiar package.json y lock
+COPY package.json ./
+COPY pnpm-lock.yaml ./
+
+# Instalar pnpm y solo dependencias de producción
+RUN npm install -g pnpm
+RUN pnpm install --prod --no-frozen-lockfile
+
+# Copiar archivos generados de Prisma
+COPY --from=build /usr/src/app/generated ./generated
+
+# Copiar la carpeta de DIST
+COPY --from=build /usr/src/app/dist ./dist
+
+# Copiar archivos de Prisma (si aplica)
+COPY --from=build /usr/src/app/prisma ./prisma
+
+ENV NODE_ENV=production
+
+USER node
+
+EXPOSE 3000
+
+CMD ["node", "dist/main.js"]
