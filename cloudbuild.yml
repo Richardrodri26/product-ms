@@ -3,8 +3,8 @@ steps:
     args:
       [
         "build",
-        "-t",
-        "northamerica-south1-docker.pkg.dev/tienda-microservices-476518/image-registry/auth-ms",
+  "-t",
+  "northamerica-south1-docker.pkg.dev/tienda-microservices-476518/image-registry/products-ms",
         "-f",
         "dockerfile.prod",
         "--platform=linux/amd64",
@@ -13,8 +13,8 @@ steps:
   - name: "gcr.io/cloud-builders/docker"
     args:
       [
-        "push",
-        "northamerica-south1-docker.pkg.dev/tienda-microservices-476518/image-registry/auth-ms",
+  "push",
+  "northamerica-south1-docker.pkg.dev/tienda-microservices-476518/image-registry/products-ms",
       ]
 options:
   logging: CLOUD_LOGGING_ONLY
